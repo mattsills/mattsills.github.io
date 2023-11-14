@@ -8,7 +8,11 @@ title: Optimizing Compilers are Cool (but not perfect)
 
 
 
-Note: This is a somewhat older post. The information in it may no longer be accruate.
+#### Note: This is a somewhat older post. The information in it may no longer be accruate.
+
+#### Update: As of `clang-1500.0.40.1` (2022), LLVM still does not seem to implement any of these optimizations.
+
+ 
 
 I’ve long thought that programmers are too eager to apply optimizations that compilers can trivially generate, with the result that their code is needlessly opaque. For example, I’d be shocked if any optimizing compiler didn’t replace a divide by a power of 2 with a shift. As a result, I’ve never liked the practice of writing:
 
