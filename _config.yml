@@ -1,10 +1,10 @@
 # Setup
 title:               Matt Sills
 tagline:             'a blog v2'
-description:         'A reserved <a href="https://jekyllrb.com" target="_blank">Jekyll</a> theme that places the utmost gravity on content with a hidden drawer. Made by <a href="https://twitter.com/mdo" target="_blank">@mdo</a>.'
-url:                 http://mattsills.github.io/
+description:         'Description here'
+url:                 'https://mattsills.github.io/'
 baseurl:             ''
-paginate:            5
+paginate:            3
 permalink:           pretty
 
 # About/contact
