@@ -1,18 +1,11 @@
 ---
-
 layout: post
-
 title: Optimizing Compilers are Cool (but not perfect)
-
 ---
-
-
 
 ### Note: This is a somewhat older post. The information in it may no longer be accruate.
 
 ### Update: As of `clang-1500.0.40.1` (2022), LLVM still does not seem to implement any of these optimizations.
-
-
 
 I’ve long thought that programmers are too eager to apply optimizations that compilers can trivially generate, with the result that their code is needlessly opaque. For example, I’d be shocked if any optimizing compiler didn’t replace a divide by a power of 2 with a shift. As a result, I’ve never liked the practice of writing:
 
@@ -27,8 +20,6 @@ instead of
 int halfX = x / 2;
 int xMod128 = x % 128;
 ```
-
-
 
 But lately I’ve started to rethink that position. For reference, I used IAR Embedded Workbench for ARM version 7.40.3 targeting a Cortex-M4 (with a `VFPv4` single precision FPU), with the optimization set to high / speed (roughly equivalent to `-O2` in GCC). The compiler seems to handle simple methods pretty well. Here are two methods. They convert [fixed point values](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) with, respectively, 15 digits and 14 digits after the radix point into single-precision floating point values.
 
@@ -53,8 +44,6 @@ a: ee00 0a10 vmov s0, r0
 e: eeba 0a41 vcvt.f32.s16 s0, s0, #14
 12: 4770 bx lr
 ```
-
-
 
 This is a pretty useful optimization, The compiler realized that the division could be accomplished with a single [VCVT](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0553a/CHDJAEDB.html) instruction, instead of performing a `VCVT` followed by a multiply (or even a divide, if it was really not helping at all). And this conversion happens all the time. For example, here’s the source for the [ARM CMSIS](http://www.arm.com/products/processors/cortex-m/cortex-microcontroller-software-interface-standard.php) DSP library method, `arm_q15_to_float`, which is just an unrolled loop executing the above method (some edits to remove irrelevant code):
 
@@ -106,8 +95,6 @@ How useful is the optimization? I threw together a quick benchmark, which involv
 
 So division is really expensive, which isn’t all that surprising. But even a single extraneous multiply results in a 28% decrease in throughput.
 
-
-
 So why the ambivalence in the title? Well, one day I decided that I’d like more than one bit of precision before the radix. No problem. I just copied the existing method and replaced the constant by `16384.f` (which is `2^14`):
 
 ```c
@@ -148,8 +135,6 @@ void _arm_q14_to_float(
 }
 ```
 
-
-
 And as we determined earlier, a division by `16384.f` turns into a single `VCVT`. So I spun it up, and… **throughput decreased by about 30%!** . What happened? Here’s the disassembled output (Address `0x21c` corresponds to the start of the first loop body, and `s0` contains the constant `16384.f`):
 
 <pre><code>
@@ -186,8 +171,6 @@ And as we determined earlier, a division by `16384.f` turns into a single `VCVT`
  ;...
  ; lots more, but you get the idea
 </code></pre>
-
-
 
 What the hell? For some reason, the compiler decided to emit a `VCVT` followed by a `VMUL` for the divisions by `16384.f`, instead of a single `VCVT` (see the highlighted text). So here’s what the compiler does, as best as I can understand:
 
