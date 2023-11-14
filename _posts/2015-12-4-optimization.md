@@ -8,11 +8,11 @@ title: Optimizing Compilers are Cool (but not perfect)
 
 
 
-#### Note: This is a somewhat older post. The information in it may no longer be accruate.
+### Note: This is a somewhat older post. The information in it may no longer be accruate.
 
-#### Update: As of `clang-1500.0.40.1` (2022), LLVM still does not seem to implement any of these optimizations.
+### Update: As of `clang-1500.0.40.1` (2022), LLVM still does not seem to implement any of these optimizations.
 
- 
+
 
 I’ve long thought that programmers are too eager to apply optimizations that compilers can trivially generate, with the result that their code is needlessly opaque. For example, I’d be shocked if any optimizing compiler didn’t replace a divide by a power of 2 with a shift. As a result, I’ve never liked the practice of writing:
 
@@ -30,7 +30,7 @@ int xMod128 = x % 128;
 
 
 
-But lately I’ve started to rethink that position. For reference, I used IAR Embedded Workbench for ARM version 7.40.3 targeting a Cortex-M4 (with a VFPv4 single precision FPU), with the optimization set to high / speed (roughly equivalent to -O2 in GCC). The compiler seems to handle simple methods pretty well. Here are two methods. They convert [fixed point values](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) with, respectively, 15 digits and 14 digits after the radix point into single-precision floating point values.
+But lately I’ve started to rethink that position. For reference, I used IAR Embedded Workbench for ARM version 7.40.3 targeting a Cortex-M4 (with a `VFPv4` single precision FPU), with the optimization set to high / speed (roughly equivalent to `-O2` in GCC). The compiler seems to handle simple methods pretty well. Here are two methods. They convert [fixed point values](https://en.wikipedia.org/wiki/Fixed-point_arithmetic) with, respectively, 15 digits and 14 digits after the radix point into single-precision floating point values.
 
 ```c
 float32_t q0115ToFloat(int16_t q0115Value) {
