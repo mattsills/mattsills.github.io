@@ -1,12 +1,9 @@
 ---
-
 layout: post
 
 title: An Unexpected Cause of an Alignment Fault
 
 ---
-
-
 
 I’d like to start off this blog by describing a bug that we ran into a few weeks ago. The details are specific to our processor type, but I think the lessons are somewhat more general. The bug also showed up in an interesting and unexpected way.
 
@@ -99,8 +96,6 @@ vstr s0, [r3, #4]
 ...
 bx lr
 ```
-
-
 
 The change from [LDR](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0553a/BABJGHFJ.html) (used to load a value into a general purpose register) to [VLDR](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0553a/CHDICEDI.html) (used to load a value into a floating point register) is pretty suggestive. We stepped through the code in a debugger, and the fault definitely occurred on the `VLDR`. The issue is actually pretty subtle. The Cortex-M4 chips (can) support unaligned access for the `LDR` instruction, but not for the `VLDR` instruction.<sup>3</sup> When no intermediate computations were applied to the variable, the compiler figured that it could just generate code to read the (floating point) value into a general purpose register, and then write it out to memory. It only generated a load into a floating point register once it needed to double the value before writing it out. In retrospect, this shouldn’t have surprised me. There’s nothing there that would require a load into a floating point register. I guess I was wired to think that any operation involving a float occurred in a floating point register.
 
