@@ -21,7 +21,7 @@ I should point out a few things about the benchmarking code provided by Lemire, 
 
 3. The choice of $$31$$ as the default evaluation point for the polynomial means that if the method gets inlined, and your compiler is aggressive enough (as clang is), you can end up with a highly specialized and very fast implementation being emitted, that elides the multiplications, and which will confound all of your benchmarks. Lemire seems to be aware of this, and has `__attribute__(noinline)`everywhere. If you want to add methods to experiment with using his test harness, you'll want to make sure to add that attribute to those methods.
 
-4. I have tried to stay aligned with the conventions and naming from Lemire's code.
+4. I have tried to stay aligned with the conventions and naming from Lemire's code. This may lead to some strange-looking style mismatches in the code.
 
 ## Notation and Setup
 
@@ -47,7 +47,7 @@ I won't dwell on the naive approach too much, except to introduce the notation w
 
 - The length of the input to be searched is $$n$$. In the source code, we use the variable `len` to represent this.
 
-- The window length, $$w$$, is the length of the target string. Somewhat confusingly, in much of the source code, we use the variable `N` to represent this.
+- The window length, $$w$$, is the length of the target string. Somewhat confusingly, in much of the source code, we use the variable `N` to represent this (this is from the original benchmark code).
 
 - The input data array will either be referred to as `data` or as `a`. The latter comes from thinking of the input as an array $$[a_0,a_1,...,a_{n-1}]$$, or from the hash code as the series, for example $$a_0+a_1B+a_2B^2+...+a_{w-1}B^{w-1}$$.
 
