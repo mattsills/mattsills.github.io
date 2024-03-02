@@ -351,7 +351,7 @@ $$
 \\
 ...
 \\
-H_{n+1} \larr B*H_{n}+a_{n+w} - B^wa_{n}
+H_{n+1} = B*H_{n}+a_{n+w} - B^wa_{n}
 $$
 
 What would the hashes look like if we did not scale them in each loop iteration:
@@ -365,7 +365,7 @@ $$
 \\
 ...
 \\
-H_{n+1} \larr H_{n}+a_{n+w}B^{n+w} - B^{n}a_{n}
+H_{n+1} = H_{n}+a_{n+w}B^{n+w} - B^{n}a_{n}
 $$
 
 This might seem a bit complicated, but it's just the result of taking rolling sums of the power series:
