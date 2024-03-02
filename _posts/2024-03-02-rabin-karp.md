@@ -370,7 +370,7 @@ $$
 Assuming that $$B$$ is odd, we can compute the multiplicative inverse $$B^{-1}$$, and compute the hash with the recurrance:
 
 $$
-H_{n+1} = B^{-1}H_n - a_n + B^{w-1}a_{n+w}
+H_{n+1} = B^{-1}(H_n - a_n) + B^{w-1}a_{n+w}
 $$
 
  We still need to multiply that hash in each loop iteration. What would happen if we did not scale them in each loop iteration?
