@@ -387,7 +387,7 @@ $$
 H_{n+1} = H_{n}+a_{n+w}B^{n+w} - B^{n}a_{n}
 $$
 
-This might seem a bit complicated, but it's just the result of taking rolling sums of the power series:
+This is just the result of taking rolling sums of the power series:
 
 $$
 \begin{align*}
@@ -404,7 +404,7 @@ $$
 
 $$
 
-And we see that the new hash $$H'$$ and old hash $$H$$ are related by:
+At first, this may not seem particularly useful, but it's easy to see that the new hash $$H'$$ and old hash $$H$$ are related by:
 
 $$
 H_n'=H_n*B^n
@@ -483,7 +483,7 @@ size_t karprabin_rolling2_alternate(const char *data, size_t len, size_t N, uint
 
 ## Using the new version
 
-While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds.
+Why is this an improvment? While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds.
 
 ![df02](/assets/images/rabin-karp/dataflow02.jpg){: width="100%" }
 
