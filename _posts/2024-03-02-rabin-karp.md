@@ -344,17 +344,36 @@ $$
 
 $$
 \begin{align*}
+&H_0 = a_0B^{w-1}+&&a_1B^{w-2}+a_2B^{w-3}+...+a_{w-1}
+\\
+&H_{1} = &&a_1B^w\ \ \ +a_2B^{w-1} \ \ +...+a_{w-1}B\ \ +a_{w}
+\end{align*}
+\\
+...
+\\
+H_{n+1} = B*H_{n}+a_{n+w} - B^wa_{n}
+
+$$
+
+We did this because it makes the recurrance very straightforward to calculate. But we could just as easily have reversed things:
+
+$$
+\begin{align*}
 &H_0 = a_0+&&a_1B+a_2B^2+...+a_{w-1}B^{w-1}
 \\
 &H_{1} = &&a_1\ \ \ +a_2B \ \ +...+a_{w-1}B^{w-2}\ \ +a_{w}B^{w-1}
 \end{align*}
 \\
 ...
-\\
-H_{n+1} = B*H_{n}+a_{n+w} - B^wa_{n}
 $$
 
-What would the hashes look like if we did not scale them in each loop iteration:
+Assuming that $$B$$ is odd, we can compute the multiplicative inverse $$B^{-1}$$, and compute the hash with the recurrance:
+
+$$
+H_{n+1} = B^{-1}H_n - a_n + B^{w-1}a_{n+w}
+$$
+
+ We still need to multiply that hash in each loop iteration. What would happen if we did not scale them in each loop iteration?
 
 $$
 \begin{align*}
@@ -391,7 +410,13 @@ $$
 H_n'=H_n*B^n
 $$
 
-So to determine if the hash matches the target, we need to scale the target by $$B^n$$, before comparing them.
+And thus:
+
+$$
+H_n=target \ \iff \ H_n'=target*B^n
+$$
+
+So to determine if the hash matches the target, we just need to scale the target by $$B^n$$, before comparing them.
 
 Here's what a non-SIMD version of this approach might look like. To see how the multiplications can be issued at once, I've explicitly unrolled the loop (just to a factor of 2):
 
