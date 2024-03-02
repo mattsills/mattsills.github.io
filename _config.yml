@@ -2,7 +2,7 @@
 title:               Pardon the Interrupt
 tagline:             'Matthew Sills'
 description:         'Description here'
-url:                 'https://mattsills.github.io/'
+url:                 'https://mattsills.github.io'
 baseurl:             ''
 paginate:            3
 permalink:           pretty
