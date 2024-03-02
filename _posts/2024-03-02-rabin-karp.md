@@ -148,7 +148,7 @@ We clearly cannot start to compute $$H_2$$ before we have computed $$H_1$$, and 
 
 To see this, I find it helpful to draw out the computation graph over time ([here is a very good overview of the general technique](https://fgiesen.wordpress.com/2018/03/05/a-whirlwind-introduction-to-dataflow-graphs/)). Time flows downward, and arrows represent data dependencies between instructions. I've drawn out part of an iteration of an unrolled loop (I only included the loads for two windows to avoid cluttering things up too much):
 
-![](../assets/images/rabin-karp/dataflow01.jpg)
+![df01](/assets/images/rabin-karp/dataflow01.jpg){: width="100%" }
 
 This may not line up exactly with the exact instructions that the processor executes in parallel, but does give the gist of it. Of particular note, you can see that the multiplications of the elements falling out of the window can be issued long before they are needed. It's the dependency on multiplying the hash by $$B$$ is the bottleneck.
 
@@ -158,7 +158,7 @@ One approach to getting around the chain dependency would be to simply split the
 
 Here's an example of what the process might look like with a window of size 8:
 
-![](../assets/images/rabin-karp/sliding-window.jpg)
+![sliding](/assets/images/rabin-karp/sliding-window.jpg){: width="100%" }
 
 In practice, the input length is much larger than the target window size, so this is not a very high cost to pay.
 
@@ -176,7 +176,7 @@ Processing the data in this way introduces a very big shortcoming: the algorithm
 
 One nice feature of this approach is that is very easily adapted to the Intel AVX2 instructions. Instead of splitting each chunk into 2 parts, we can split each chunk into 8 parts, which I'll call "slices" (each AVX2 register consists of 8 32-bit values), and process each part independently within a single 32-bit slice.
 
-![](../assets/images/rabin-karp/simd.jpg)
+![simd](/assets/images/rabin-karp/simd.jpg)
 
 Note that in the code below, in each loop iteration we read 4 values per slice (so 32 in total), and explicitly unroll the loop. This lets us issue only two gathers per iteration, which is a big savings.
 
@@ -460,7 +460,7 @@ size_t karprabin_rolling2_alternate(const char *data, size_t len, size_t N, uint
 
 While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds.
 
-![](../assets/images/rabin-karp/dataflow02.jpg)
+![df02](/assets/images/rabin-karp/dataflow02.jpg){: width="100%" }
 
 We can see that the chain dependency has gone from a multiplication, addition and subtraction to just an addition and subtraction. All of the multiplications can be issued at the beginning of the loop iteration.
 
