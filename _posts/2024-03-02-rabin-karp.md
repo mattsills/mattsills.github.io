@@ -1,7 +1,7 @@
-```yaml
+---
 layout: post
 title: Optimizing Rabin-Karp Hashing
-```
+---
 
 **Note: After re-reading this, I think the post could use a bit more exposition about how the SIMD instructions work. I've left it up, and will hopefully be able to flesh it out in more detail when I have some more time.**
 
@@ -9,7 +9,7 @@ title: Optimizing Rabin-Karp Hashing
 
 [Daniel Lemire]([Daniel Lemire, Computer Science Professor](https://lemire.me/en/)) is a professor of computer science at TÉLUQ, who specializes in performance engineering. He is also a prolific [blogger](https://lemire.me/blog), and his posts are occasionally featured on Hacker News. If you somehow found your way to this blog, you are likely familiar with his writing. A few weeks ago, he posed the following question: ["How fast is rolling Rabin-Karp hashing?"](https://lemire.me/blog/2024/02/04/how-fast-is-rolling-karp-rabin-hashing/), for example as might be used in the Rabin-Karp string search [algorithm](https://en.wikipedia.org/wiki/Rabin%E2%80%93Karp_algorithm).
 
-A friend and I had some extra time over the past couple of days, and we figured it would be fun to explore the problem. As it turns out, the algorithm is a good way to build and understanding for low-level performance optimizations, in particular the role of dependency chain latency.
+A friend and I had some extra time over the past couple of days, and we figured it would be fun to explore the problem. As it turns out, the algorithm is a good way to build an understanding for low-level performance optimizations, in particular the role of dependency chain latency.
 
 ## Notes
 
@@ -19,7 +19,7 @@ I should point out a few things about the benchmarking code provided by Lemire, 
 
 2. The reported throughput is the **maximum** recorded throughput per run. This isn't necessarily a bad choice, but it can make the result a bit unstable. We changed that to reflect the average throughput over all runs.
 
-3. The choice of $31$ as the default evaluation point for the polynomial means that if the method gets inlined, and your compiler is aggressive enough (as clang is), you can end up with a highly specialized and very fast implementation being emitted, that elides the multiplications, and which will confound all of your benchmarks. Lemire seems to be aware of this, and has `__attribute__(noinline)`everywhere. If you want to add methods to experiment with using his test harness, you'll want to make sure to add that attribute to those methods.
+3. The choice of $$31$$ as the default evaluation point for the polynomial means that if the method gets inlined, and your compiler is aggressive enough (as clang is), you can end up with a highly specialized and very fast implementation being emitted, that elides the multiplications, and which will confound all of your benchmarks. Lemire seems to be aware of this, and has `__attribute__(noinline)`everywhere. If you want to add methods to experiment with using his test harness, you'll want to make sure to add that attribute to those methods.
 
 4. I have tried to stay aligned with the conventions and naming from Lemire's code.
 
@@ -45,15 +45,15 @@ This counts the number of substrings of `window_length`within the input string t
 
 I won't dwell on the naive approach too much, except to introduce the notation we'll use throughout:
 
-- The length of the input to be searched is $n$. In the source code, we use the variable `len` to represent this.
+- The length of the input to be searched is $$n$$. In the source code, we use the variable `len` to represent this.
 
-- The window length, $w$, is the length of the target string. Somewhat confusingly, in much of the source code, we use the variable `N` to represent this.
+- The window length, $$w$$, is the length of the target string. Somewhat confusingly, in much of the source code, we use the variable `N` to represent this.
 
-- The input data array will either be referred to as `data` or as `a`. The latter comes from thinking of the input as an array $[a_0,a_1,...,a_{n-1}]$, or from the hash code as the series, for example $a_0+a_1B+a_2B^2+...+a_{w-1}B^{w-1}$.
+- The input data array will either be referred to as `data` or as `a`. The latter comes from thinking of the input as an array $$[a_0,a_1,...,a_{n-1}]$$, or from the hash code as the series, for example $$a_0+a_1B+a_2B^2+...+a_{w-1}B^{w-1}$$.
 
-- The base is $B$.
+- The base is $$B$$.
 
-The naive approach takes time $O(nw)$. We can't even really benchmark it, as it very quickly becomes intractable to run.
+The naive approach takes time $$O(nw)$$. We can't even really benchmark it, as it very quickly becomes intractable to run.
 
 ## Simple Rolling Approach
 
@@ -92,7 +92,7 @@ size_t karprabin_rolling(const char *data, size_t len, size_t N, uint32_t B, uin
 
 Tools like [perf](https://perf.wiki.kernel.org/index.php/Tutorial) are great. But in my experience, it's useful to try to form a hypothesis before breaking out a profiler. This helps ground the process, and forces us to develop and update a mental model of the performance of the code as we investigate. I've also found this general approach to be useful at other scales (for example when analyzing bottlenecks in distributed systems).
 
-A good starting point is to be able to bound the problem in some way. So with that in mind, let's throw together a quick benchmark for computing the simpler hash function, that's just a sum of the values over the sliding window (you could think of this as a Rabin-Karp hash with $B=1$):
+A good starting point is to be able to bound the problem in some way. So with that in mind, let's throw together a quick benchmark for computing the simpler hash function, that's just a sum of the values over the sliding window (you could think of this as a Rabin-Karp hash with $$B=1$$):
 
 ```cpp
 __attribute__ ((noinline))
@@ -122,9 +122,9 @@ Returning to our actual problem, let's try to build an intuition for where the o
 
 1. Load two values (the incoming and outgoing elements).
 
-2. Multiply the outgoing element by $B^n$.
+2. Multiply the outgoing element by $$B^n$$.
 
-3. Multiply the hash by $B$.
+3. Multiply the hash by $$B$$.
 
 4. Add the incoming element and subtract the (scaled) outgoing element to the hash.
 
@@ -144,13 +144,13 @@ $$
 \end{align*}
 $$
 
-We clearly cannot start to compute $H_2$ before we have computed $H_1$, and so must wait to issue the multiplication $B*H_1$ until we have computed $H_1$, which involves computing $B*H_0$, which takes at least 4 cycles. This is what's known as a *loop-carried dependency*. The processor can try to stay busy by executing the other operations while the multiply is running, but ultimately the latency of the multiplication puts a limit on the overall throughput.
+We clearly cannot start to compute $$H_2$$ before we have computed $$H_1$$, and so must wait to issue the multiplication $$B*H_1$$ until we have computed $$H_1$$, which involves computing $$B*H_0$$, which takes at least 4 cycles. This is what's known as a *loop-carried dependency*. The processor can try to stay busy by executing the other operations while the multiply is running, but ultimately the latency of the multiplication puts a limit on the overall throughput.
 
 To see this, I find it helpful to draw out the computation graph over time ([here is a very good overview of the general technique](https://fgiesen.wordpress.com/2018/03/05/a-whirlwind-introduction-to-dataflow-graphs/)). Time flows downward, and arrows represent data dependencies between instructions. I've drawn out part of an iteration of an unrolled loop (I only included the loads for two windows to avoid cluttering things up too much):
 
 ![](../assets/images/rabin-karp/dataflow01.jpg)
 
-This may not line up exactly with the exact instructions that the processor executes in parallel, but does give the gist of it. Of particular note, you can see that the multiplications of the elements falling out of the window can be issued long before they are needed. It's the dependency on multiplying the hash by $B$ is the bottleneck.
+This may not line up exactly with the exact instructions that the processor executes in parallel, but does give the gist of it. Of particular note, you can see that the multiplications of the elements falling out of the window can be issued long before they are needed. It's the dependency on multiplying the hash by $$B$$ is the bottleneck.
 
 ## "Parallelizing" the Process
 
@@ -170,7 +170,7 @@ How far can we push this approach? At least on our test host, doubling from 2 in
 
 ## Making it Streaming Friendly
 
-Processing the data in this way introduces a very big shortcoming: the algorithm can no longer be applied to a single stream (because we need to be able to seek halfway through the input). I can imagine plenty of use cases where that would be a dealbreaker. How can we get that behavior back? The best approach I can think of is to read a fairly large chunk of data, say some constant $C$ windows' worth, for $C$ around 10 or so. Then process that chunk in "parallel" as described above. Then read and process the next chunk. Now, instead of processing an extra window once, we process two extra windows ***per chunk*** (one in the middle and one at the end), and we have to hold $C$ windows in memory. So the memory consumption is $O(C*W)$, and the runtime is $O(N*(1+\frac{2}{c}))$. By playing with the constant $C$, we can trade off memory consumption and runtime overhead. We get back a streaming-friendly algorithm, which I call the ***leaping*** algorithm, and the performance doesn't suffer too much. For $C=32$, **<mark>we can process the input at 1.20 GB/s</mark>**.
+Processing the data in this way introduces a very big shortcoming: the algorithm can no longer be applied to a single stream (because we need to be able to seek halfway through the input). I can imagine plenty of use cases where that would be a dealbreaker. How can we get that behavior back? The best approach I can think of is to read a fairly large chunk of data, say some constant $$C$$ windows' worth, for $$C$$ around 10 or so. Then process that chunk in "parallel" as described above. Then read and process the next chunk. Now, instead of processing an extra window once, we process two extra windows ***per chunk*** (one in the middle and one at the end), and we have to hold $$C$$ windows in memory. So the memory consumption is $$O(C*W)$$, and the runtime is $$O(N*(1+\frac{2}{c}))$$. By playing with the constant $$C$$, we can trade off memory consumption and runtime overhead. We get back a streaming-friendly algorithm, which I call the ***leaping*** algorithm, and the performance doesn't suffer too much. For $$C=32$$, **<mark>we can process the input at 1.20 GB/s</mark>**.
 
 ## SIMD
 
@@ -330,7 +330,7 @@ size_t karprabin_rolling4_leaping_8x4_avx2(const char *data, size_t len, size_t 
 
 ## Optimizing Further
 
-The SIMD operations make things much faster, but frustratingly, we are again bound on the chain dependency between multiplying the hashcodes by $B$. In some sense, we are a victim of our success here. By combining the separate multiplications into a single instruction, we freed up formerly occupied execution ports. But it would be nice to remove this bottleneck. One approach (which I have not tried) is to do the same trick as before, and process two of these parts in parallel.
+The SIMD operations make things much faster, but frustratingly, we are again bound on the chain dependency between multiplying the hashcodes by $$B$$. In some sense, we are a victim of our success here. By combining the separate multiplications into a single instruction, we freed up formerly occupied execution ports. But it would be nice to remove this bottleneck. One approach (which I have not tried) is to do the same trick as before, and process two of these parts in parallel.
 
 Another (which we will go with) is to notice that while the multiplication instruction (`vpmulld`) has a latency of [10 cycles](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#ig_expand=3836,3705,6375,6319,6003,1041,3704,4769,2929,3847,2962,866,3707,3708,4772,4772&techs=SSE_ALL,AVX_ALL,AVX_512&text=_mm256_mul), the processor can issue that instruction every `0.66` cycles. Put another way, issuing a bunch of SIMD multiplications in a row is not much more expensive than issuing a single one.
 
@@ -385,13 +385,13 @@ $$
 
 $$
 
-And we see that the new hash $H'$ and old hash $H$ are related by:
+And we see that the new hash $$H'$$ and old hash $$H$$ are related by:
 
 $$
 H_n'=H_n*B^n
 $$
 
-So to determine if the hash matches the target, we need to scale the target by $B^n$, before comparing them.
+So to determine if the hash matches the target, we need to scale the target by $$B^n$$, before comparing them.
 
 Here's what a non-SIMD version of this approach might look like. To see how the multiplications can be issued at once, I've explicitly unrolled the loop (just to a factor of 2):
 
