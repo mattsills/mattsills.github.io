@@ -86,7 +86,7 @@ size_t karprabin_rolling(const char *data, size_t len, size_t N, uint32_t B, uin
 }
 ```
 
-<mark>**This runs at 0.73 GB/s**</mark>
+**<mark>This runs at 0.73 GB/s.</mark>**
 
 ## Thinking about performance
 
@@ -164,7 +164,7 @@ In practice, the input length is much larger than the target window size, so thi
 
 Spinning up a thread pool doesn't seem in keeping with the spirit of the exercise. But as we just discovered, even a single core has plenty of extra capacity. So if we just simply issue the two hash code computations in a single thread, we should still be able to take advantage of all of the OOO-superscalar features of modern processors. And indeed we see a dramatic speedup.
 
-<mark>**This runs at 1.25 GB/s.**</mark>
+**<mark>This runs at 1.25 GB/s.</mark>**
 
 How far can we push this approach? At least on our test host, doubling from 2 independent hash codes to 4 yielded no benefits, but YMMV.
 
@@ -464,7 +464,7 @@ While we (paradoxically) actually have to compute more multiplications, we have 
 
 We can see that the chain dependency has gone from a multiplication, addition and subtraction to just an addition and subtraction. All of the multiplications can be issued at the beginning of the loop iteration.
 
-<mark>**This runs at 1.77 GB/s.**</mark>
+**<mark>This runs at 1.77 GB/s.</mark>**
 
 ## A final optimization
 
@@ -495,7 +495,7 @@ return _mm256_extract_epi32(counts, 0)
 
 The reason I don't like this is that while `_mm256_cmpeq_epi32_mask` produces an output that can be used for actual string search, I cannot think of a good use case for simply counting the number of hash matches. But it was an interesting optimization, so I left it in.
 
-<mark>**This runs at 1.86 GB/s.**</mark>
+**<mark>This runs at 1.86 GB/s.</mark>**
 
 ## Summary
 
