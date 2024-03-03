@@ -1,8 +1,6 @@
 ---
 layout: post
-
 title: An Unexpected Cause of an Alignment Fault
-
 ---
 
 I’d like to start off this blog by describing a bug that we ran into a few weeks ago. The details are specific to our processor type, but I think the lessons are somewhat more general. The bug also showed up in an interesting and unexpected way.
