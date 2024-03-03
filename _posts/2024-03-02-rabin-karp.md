@@ -17,7 +17,7 @@ I should point out a few things about the benchmarking code provided by Lemire, 
 
 1. The choice of window sizes does not reflect any real world scenario (if the target string is 8 bytes, we can just load and compare the whole string in a normal register). In our benchmarks we used much larger values.
 
-2. The reported throughput is the **maximum** recorded throughput per run. This isn't necessarily a bad choice, but it can make the result a bit unstable. We changed that to reflect the average throughput over all runs.
+2. The reported throughput is the **maximum** recorded throughput per run. This isn't necessarily a bad choice, but it can make the result a bit unstable. We changed that to reflect the average throughput over all runs. No results were substantially affected by this change.
 
 3. The choice of $$31$$ as the default evaluation point for the polynomial means that if the method gets inlined, and your compiler is aggressive enough (as clang is), you can end up with a highly specialized and very fast implementation being emitted, that elides the multiplications, and which will confound all of your benchmarks. Lemire seems to be aware of this, and has `__attribute__(noinline)`everywhere. If you want to add methods to experiment with using his test harness, you'll want to make sure to add that attribute to those methods.
 
@@ -170,7 +170,7 @@ How far can we push this approach? At least on our test host, doubling from 2 in
 
 ## Making it Streaming Friendly
 
-Processing the data in this way introduces a very big shortcoming: the algorithm can no longer be applied to a single stream (because we need to be able to seek halfway through the input). I can imagine plenty of use cases where that would be a dealbreaker. How can we get that behavior back? The best approach I can think of is to read a fairly large chunk of data, say some constant $$C$$ windows' worth, for $$C$$ around 10 or so. Then process that chunk in "parallel" as described above. Then read and process the next chunk. Now, instead of processing an extra window once, we process two extra windows ***per chunk*** (one in the middle and one at the end), and we have to hold $$C$$ windows in memory. So the memory consumption is $$O(C*W)$$, and the runtime is $$O(N*(1+\frac{2}{c}))$$. By playing with the constant $$C$$, we can trade off memory consumption and runtime overhead. We get back a streaming-friendly algorithm, which I call the ***leaping*** algorithm, and the performance doesn't suffer too much. For $$C=32$$, **<mark>we can process the input at 1.20 GB/s</mark>**.
+Processing the data in this way introduces a very big shortcoming: the algorithm can no longer be applied to a single stream (because we need to be able to seek halfway through the input). I can imagine plenty of use cases where that would be a dealbreaker. How can we get that behavior back? The best approach I can think of is to read a fairly large chunk of data, say some constant $$C$$ windows' worth, for $$C$$ around 10 or so. Then process that chunk in "parallel" as described above. Then read and process the next chunk. Now, instead of processing an extra window once, we process two extra windows ***per chunk*** (one in the middle and one at the end), and we have to hold $$C$$ windows in memory. So the memory consumption is $$O(C*W)$$, and the runtime is $$O(N*(1+\frac{2}{c}))$$. By playing with the constant $$C$$, we can trade off memory consumption and runtime overhead. We get back a streaming-friendly algorithm, which I call the ***chunked streaming*** algorithm, and the performance doesn't suffer too much. For $$C=32$$, **<mark>we can process the input at 1.20 GB/s</mark>**.
 
 ## SIMD
 
@@ -204,7 +204,7 @@ static inline __m256i byte3(__m256i bytes) {
 }
 
 __attribute__ ((noinline))
-size_t karprabin_rolling4_leaping_8x4_avx2(const char *data, size_t len, size_t N, uint32_t B, uint32_t target) {
+size_t karprabin_rolling4_chunked_streaming_8x4_avx2(const char *data, size_t len, size_t N, uint32_t B, uint32_t target) {
     uint32_t BtoN = 1;
     for (size_t i = 0; i < N; i++) {
         BtoN *= B;
@@ -418,6 +418,16 @@ $$
 
 So to determine if the hash matches the target, we just need to scale the target by $$B^n$$, before comparing them.
 
+
+
+Why is this an improvment? While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds.
+
+![df02](/assets/images/rabin-karp/dataflow02.jpg){: width="100%" }
+
+We can see that the chain dependency has gone from a multiplication, addition and subtraction to just an addition and subtraction. All of the multiplications can be issued at the beginning of the loop iteration.
+
+**<mark>This runs at 1.77 GB/s.</mark>**
+
 Here's what a non-SIMD version of this approach might look like. To see how the multiplications can be issued at once, I've explicitly unrolled the loop (just to a factor of 2):
 
 ```cpp
@@ -481,16 +491,6 @@ size_t karprabin_rolling2_alternate(const char *data, size_t len, size_t N, uint
 }
 ```
 
-## Using the new version
-
-Why is this an improvment? While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds.
-
-![df02](/assets/images/rabin-karp/dataflow02.jpg){: width="100%" }
-
-We can see that the chain dependency has gone from a multiplication, addition and subtraction to just an addition and subtraction. All of the multiplications can be issued at the beginning of the loop iteration.
-
-**<mark>This runs at 1.77 GB/s.</mark>**
-
 ## A final optimization
 
 There's one more optimization I'd like to discuss. I don't really like it, because it makes the method much less useful, but we can do a bit better at counting the number of matches. Instead of counting up hash matches in a single accumulator, we can keep track of the number of matches in each "slice", and then sum them up at the end. That is, replace:
@@ -524,4 +524,4 @@ The reason I don't like this is that while `_mm256_cmpeq_epi32_mask` produces an
 
 ## Summary
 
-All in all, we were able to achieve a greater than `2.5x` speedup. It was interesting to poke around the AVX instructions after a while away from them, and I definitely feel like I have a better intuition for these kinds of problems after working through this.
+All in all, we were able to achieve a greater than `2.5x` speedup. It was interesting to poke around the AVX instructions after a while away from them, and I definitely feel like I have a better intuition for these kinds of problems after working through this. Thanks to Daniel Lemire for posing the problem and providing his benchmark harness.
