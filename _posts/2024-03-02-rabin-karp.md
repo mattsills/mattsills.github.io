@@ -11,6 +11,8 @@ title: Optimizing Rabin-Karp Hashing
 
 A friend and I had some extra time over the past couple of days, and we figured it would be fun to explore the problem. As it turns out, the algorithm is a good way to build an understanding for low-level performance optimizations, in particular the role of dependency chain latency.
 
+If you haven't read Lemire's post yet, I would suggest at least giving it a quick glance.
+
 ## Notes
 
 I should point out a few things about the benchmarking code provided by Lemire, that you might find useful if you decide to experiment yourself:
