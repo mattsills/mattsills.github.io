@@ -21,7 +21,7 @@ I should point out a few things about the benchmarking code provided by Lemire, 
 
 2. The reported throughput is the **maximum** recorded throughput per run. This isn't necessarily a bad choice, but it can make the result a bit unstable. We changed that to reflect the average throughput over all runs. No results were substantially affected by this change.
 
-3. The choice of $$31$$ as the default evaluation point for the polynomial means that if the method gets inlined, and your compiler is aggressive enough (as clang is), you can end up with a highly specialized and very fast implementation being emitted, that elides the multiplications, and which will confound all of your benchmarks. Lemire seems to be aware of this, and has `__attribute__(noinline)`everywhere. If you want to add methods to experiment with using his test harness, you'll want to make sure to add that attribute to those methods.
+3. The choice of $$31$$ as the default evaluation point for the polynomial means that if the method gets inlined, and your compiler is aggressive enough (as clang is), you can end up with a highly specialized and very fast implementation being emitted that elides the multiplications (`x*31 => (x << 5) - x`), and which will confound all of your benchmarks. Lemire seems to be aware of this, and has `__attribute__(noinline)`everywhere. If you want to add methods to experiment with using his test harness, you'll want to make sure to add that attribute to those methods.
 
 4. I have tried to stay aligned with the conventions and naming from Lemire's code. This may lead to some strange-looking style mismatches in the code.
 
@@ -148,7 +148,7 @@ $$
 
 We clearly cannot start to compute $$H_2$$ before we have computed $$H_1$$, and so must wait to issue the multiplication $$B*H_1$$ until we have computed $$H_1$$, which involves computing $$B*H_0$$, which takes at least 4 cycles. This is what's known as a *loop-carried dependency*. The processor can try to stay busy by executing the other operations while the multiply is running, but ultimately the latency of the multiplication puts a limit on the overall throughput.
 
-To see this, I find it helpful to draw out the computation graph over time ([here is a very good overview of the general technique](https://fgiesen.wordpress.com/2018/03/05/a-whirlwind-introduction-to-dataflow-graphs/)). Time flows downward, and arrows represent data dependencies between instructions. I've drawn out part of an iteration of an unrolled loop (I only included the loads for two windows to avoid cluttering things up too much):
+To see this, I find it helpful to draw out the computation graph over time ([here is a very good overview of the general technique](https://fgiesen.wordpress.com/2018/03/05/a-whirlwind-introduction-to-dataflow-graphs/)). Time flows downward, and arrows represent data dependencies between instructions. I've drawn out part of an iteration of an unrolled loop (I only included the loads for two windows to avoid cluttering things up too much). I've also highlighted the loop-carried dependency:
 
 ![df01](/assets/images/rabin-karp/dataflow01.jpg){: width="100%" }
 
@@ -420,9 +420,7 @@ $$
 
 So to determine if the hash matches the target, we just need to scale the target by $$B^n$$, before comparing them.
 
-
-
-Why is this an improvment? While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds.
+Why is this an improvment? While we (paradoxically) actually have to compute more multiplications, we have gained something, namely that the multiplications can now all be issued at the same time. To illustrate this, let's consider the non-SIMD case. I've grouped instructions at the earliest cycle where they could execute. In practice, they will probably execute later, when an execution port becomes available. Values in registers are represented by diamonds. As before, I've highlighted the chain dependency:
 
 ![df02](/assets/images/rabin-karp/dataflow02.jpg){: width="100%" }
 
@@ -523,6 +521,21 @@ return _mm256_extract_epi32(counts, 0)
 The reason I don't like this is that while `_mm256_cmpeq_epi32_mask` produces an output that can be used for actual string search, I cannot think of a good use case for simply counting the number of hash matches. But it was an interesting optimization, so I left it in.
 
 **<mark>This runs at 1.86 GB/s.</mark>**
+
+Update: A commenter on HackerNews points out that `0xFFFFFFFF` is just `-1` in two's complement arithmetic, there's no need to shift. Instead, just do this:
+
+```cpp
+__m256i counts = _mm256_setzero_si256();
+// ...
+matches = mm256_cmpeq_epi32(hashes, targets);
+counts = _mm256_sub_epi32(counts, matches);
+// ...
+return _mm256_extract_epi32(counts, 0)
+    + _mm256_extract_epi32(counts, 1)
+    + ...;
+```
+
+**<mark>This yields a modest improvement, to 1.89 GB/s.</mark>**
 
 ## Summary
 
